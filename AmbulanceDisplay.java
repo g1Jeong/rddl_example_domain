@@ -124,7 +124,7 @@ public class AmbulanceDisplay extends StateViz {
 		sb.append("\n");
 		// Skim through all (ambulance, location, location) tuples to check which ambulance is dispatched to
 		// which emergency call. 
-		/*for (Map.Entry<String, ArrayList<PVAR_NAME>> entry : s._hmTypeMap.entrySet()) {
+		for (Map.Entry<String, ArrayList<PVAR_NAME>> entry : s._hmTypeMap.entrySet()) {
 			
 			if (entry.getKey().equals("nonfluent") | entry.getKey().equals("interm"))
 				continue;
@@ -148,7 +148,7 @@ public class AmbulanceDisplay extends StateViz {
 				}
 		
 			}
-		}*/
+		}
 		// Sleep so the animation can be viewed at a frame rate of 1000/_nTimeDelay per second
 	    try {
 			Thread.currentThread().sleep(_nTimeDelay);
