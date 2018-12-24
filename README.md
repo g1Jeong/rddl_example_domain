@@ -11,3 +11,6 @@ Place the domain description file and an instance file in the same directory and
   run rddl.sim.Simulator files/Jihwan/rddl rddl.policy.RandomBoolPolicy ambulance_inst_4x4_22 rddl.viz.AmbulanceDisplay
 
 Note that the visualization is based on the example provided on the RDDL tutorial website. At each step, currently active (non answered emergency call) location, current positions of ambulances (one or more depending on instantiation), dispatch (if any) are printed out. This might slow execution of the simulation. 
+
+Due to the complex relations between variables and constraints, it seems like deciding a valid action takes the most of execution time. 
+
