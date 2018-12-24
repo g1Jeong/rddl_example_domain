@@ -15,46 +15,46 @@ domain ambulance {
 	
 	pvariables {
 		// non-fluents
-		NON_ANSWERED_PENALTY : {non-fluent, real, default = -20.0};
-		ON_THE_WAY_PENALTY : {non-fluent, real, default = -5.0};
+		NON_ANSWERED_PENALTY 		: {non-fluent, real, default = -20.0};
+		ON_THE_WAY_PENALTY 			: {non-fluent, real, default = -5.0};
 	
-		ARRIVAL_RATE : {non-fluent, real, default = 1.0};
-		HOSPITAL(location) : {non-fluent, bool, default = false};  // each grid point can either be a hospital
-		EMERGENCY(location) : {non-fluent, bool, default = false}; // or emergency location
+		ARRIVAL_RATE 				: {non-fluent, real, default = 1.0};
+		HOSPITAL(location) 			: {non-fluent, bool, default = false};  // each grid point can either be a hospital
+		EMERGENCY(location) 		: {non-fluent, bool, default = false}; // or emergency location
 		
-		x_Pos(location) : {non-fluent, int, default = 0};
-		y_Pos(location) : {non-fluent, int, default = 0};
+		x_Pos(location) 			: {non-fluent, int, default = 0};
+		y_Pos(location) 			: {non-fluent, int, default = 0};
 	
 		// state-fluents
-		active(location) : {state-fluent, bool, default = false};		// an emergency call is pending
+		active(location) 			: {state-fluent, bool, default = false};		// an emergency call is pending
 		
-		PassengerOn(ambulance) : {state-fluent, bool, default = false};
-		xPos(ambulance) : {state-fluent, int, default = 0};
-		yPos(ambulance) : {state-fluent, int, default = 0};
+		PassengerOn(ambulance)		: {state-fluent, bool, default = false};
+		xPos(ambulance) 			: {state-fluent, int, default = 0};
+		yPos(ambulance) 			: {state-fluent, int, default = 0};
 
-		EmergencyDest(ambulance, location) : {state-fluent, bool, default = false};
-		HospitalDest(ambulance, location) : {state-fluent, bool, default = false};
+		EmergencyDest(ambulance, location) 	: {state-fluent, bool, default = false};
+		HospitalDest(ambulance, location) 	: {state-fluent, bool, default = false};
 		
 		// interm-fluents
-		PoissonArrival : {interm-fluent, real, level = 1};
-		NumInactive : {interm-fluent, int, level = 1};
-		newDispatch(ambulance, location) : {interm-fluent, bool, level = 1};
+		PoissonArrival 				: {interm-fluent, real, level = 1};
+		NumInactive 				: {interm-fluent, int, level = 1};
+		newDispatch(ambulance, location) 	: {interm-fluent, bool, level = 1};
 		
-		ArrivedAt(ambulance, location) : {interm-fluent, bool, level = 1};
+		ArrivedAt(ambulance, location) 		: {interm-fluent, bool, level = 1};
 		
-		ArrivedAtHospital(ambulance) : {interm-fluent, bool, level = 2};
-		ArrivedAtEmergency(ambulance) : {interm-fluent, bool, level = 2};
-		TowardEmergency(ambulance) : {interm-fluent, bool, level = 2};
-		TowardHospital(ambulance) : {interm-fluent, bool, level = 3};
+		ArrivedAtHospital(ambulance) 		: {interm-fluent, bool, level = 2};
+		ArrivedAtEmergency(ambulance) 		: {interm-fluent, bool, level = 2};
+		TowardEmergency(ambulance) 			: {interm-fluent, bool, level = 2};
+		TowardHospital(ambulance) 			: {interm-fluent, bool, level = 3};
 		
 		
-		moveX(ambulance) : {interm-fluent, int, level = 2};
-		moveY(ambulance) : {interm-fluent, int, level = 2};
+		moveX(ambulance) 			: {interm-fluent, int, level = 2};
+		moveY(ambulance) 			: {interm-fluent, int, level = 2};
 		
-		XorY(ambulance) : {interm-fluent, bool, level = 3};
+		XorY(ambulance) 			: {interm-fluent, bool, level = 3};
 		
-		nextX(ambulance) : {interm-fluent, int, level = 4};
-		nextY(ambulance) : {interm-fluent, int, level = 4};
+		nextX(ambulance) 			: {interm-fluent, int, level = 4};
+		nextY(ambulance) 			: {interm-fluent, int, level = 4};
 		
 		// action-fluent
 		// assign an ambulance and a hospital to an accident 
@@ -160,12 +160,12 @@ domain ambulance {
 			+ [ ON_THE_WAY_PENALTY * sum_{?a : ambulance} [PassengerOn(?a)] ];
 	
 	state-action-constraints {
-		// dispatch action can only happen when an emergency call is still active (while no ambulance has been assigned), and an ambulance is idle. 
+		// if a dispatch action happens then followings are true: some emergency call is still active (with no ambulance being assigned), and there is an idle ambulance.
 		forall_{?a : ambulance} forall_{?e : location} forall_{?h : location} [dispatch(?a, ?e, ?h) => (EMERGENCY(?e) ^ HOSPITAL(?h) ^ active(?e) ^ (~exists_{?l : location}[EmergencyDest(?a, ?l) | HospitalDest(?a, ?l)]) ^ (~exists_{?b : ambulance}[EmergencyDest(?b, ?e)])) ];
 		
-		// vice versa
+		// Conversely, when there is an emergency call no ambulances are targeting, and there is an idle ambulance, then a dispatch action should occur to handle this call.
 		forall_{?e : location} [ exists_{?h : location} [(EMERGENCY(?e) ^ HOSPITAL(?h) ^ active(?e) ^ (~exists_{?a : ambulance}[EmergencyDest(?a, ?e)]))] => exists_{?a : ambulance} exists_{?h: location} [dispatch(?a, ?e, ?h)] ];
-		
+				
 		// Ensure that no two ambulances can be heading towards the same emergency call
 		forall_{?e : location} [(sum_{?a : ambulance}[EmergencyDest(?a, ?e)]) <= 1];
 		
