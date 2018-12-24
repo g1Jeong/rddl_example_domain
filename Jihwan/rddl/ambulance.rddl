@@ -1,0 +1,183 @@
+domain ambulance {
+	
+	requirements = {
+		continuous,
+		integer-valued,
+		reward-deterministic,
+		intermediate-nodes,
+		constrained-state
+	};
+	
+	types {
+		ambulance : object;
+		location : object;
+	};
+	
+	pvariables {
+		// non-fluents
+		NON_ANSWERED_PENALTY : {non-fluent, real, default = -20.0};
+		ON_THE_WAY_PENALTY : {non-fluent, real, default = -5.0};
+	
+		ARRIVAL_RATE : {non-fluent, real, default = 1.0};
+		HOSPITAL(location) : {non-fluent, bool, default = false};  // each grid point can either be a hospital
+		EMERGENCY(location) : {non-fluent, bool, default = false}; // or emergency location
+		
+		x_Pos(location) : {non-fluent, int, default = 0};
+		y_Pos(location) : {non-fluent, int, default = 0};
+	
+		// state-fluents
+		active(location) : {state-fluent, bool, default = false};		// an emergency call is pending
+		
+		PassengerOn(ambulance) : {state-fluent, bool, default = false};
+		xPos(ambulance) : {state-fluent, int, default = 0};
+		yPos(ambulance) : {state-fluent, int, default = 0};
+
+		EmergencyDest(ambulance, location) : {state-fluent, bool, default = false};
+		HospitalDest(ambulance, location) : {state-fluent, bool, default = false};
+		
+		// interm-fluents
+		PoissonArrival : {interm-fluent, real, level = 1};
+		NumInactive : {interm-fluent, int, level = 1};
+		newDispatch(ambulance, location) : {interm-fluent, bool, level = 1};
+		
+		ArrivedAt(ambulance, location) : {interm-fluent, bool, level = 1};
+		
+		ArrivedAtHospital(ambulance) : {interm-fluent, bool, level = 2};
+		ArrivedAtEmergency(ambulance) : {interm-fluent, bool, level = 2};
+		TowardEmergency(ambulance) : {interm-fluent, bool, level = 1};
+		TowardHospital(ambulance) : {interm-fluent, bool, level = 1};
+		
+		
+		moveX(ambulance) : {interm-fluent, int, level = 2};
+		moveY(ambulance) : {interm-fluent, int, level = 2};
+		
+		XorY(ambulance) : {interm-fluent, bool, level = 3};
+		
+		nextX(ambulance) : {interm-fluent, int, level = 4};
+		nextY(ambulance) : {interm-fluent, int, level = 4};
+		
+		// action-fluent
+		// assign an ambulance and a hospital to an accident 
+		dispatch(ambulance, location, location) : {action-fluent, bool, default = false};
+		
+	};
+	
+	cpfs {
+		
+		NumInactive = (sum_{?l : location} [EMERGENCY(?l) ^ ~active(?l)]);
+		PoissonArrival = 
+			if (NumInactive ~= 0) then (1 - exp[-ARRIVAL_RATE/NumInactive])
+			else 0;
+		
+		newDispatch(?a, ?e) = exists_{?h : location} [dispatch(?a, ?e, ?h)];
+		
+		TowardEmergency(?a) = ( (exists_{?e : location} [EMERGENCY(?e) ^ EmergencyDest(?a, ?e)]) | (exists_{?e : location} [newDispatch(?a, ?e)]) );
+		TowardHospital(?a) = PassengerOn(?a);
+		
+		ArrivedAt(?a, ?l) = 
+			if (HOSPITAL(?l)) then
+				( PassengerOn(?a) ^ HospitalDest(?a, ?l) ^ (xPos(?a)==x_Pos(?l)) ^ (yPos(?a)==y_Pos(?l)) )  
+			else
+				( active(?l) ^ EmergencyDest(?a, ?l) ^ (xPos(?a)==x_Pos(?l)) ^ (yPos(?a)==y_Pos(?l)) );
+		
+		ArrivedAtHospital(?a) = ( exists_{?l : location} [HOSPITAL(?l) ^ ArrivedAt(?a, ?l)] );
+		ArrivedAtEmergency(?a) = ( exists_{?l : location} [EMERGENCY(?l) ^ ArrivedAt(?a, ?l)] ); 
+		
+		active'(?l) = 
+			if (HOSPITAL(?l)) then active(?l)				// for hospitals, this should be false
+			else if (~active(?l)) then Bernoulli(PoissonArrival)		
+			else if (exists_{?a : ambulance} [ArrivedAt(?a, ?l)]) then false
+			else 
+				active(?l);
+		
+		PassengerOn'(?a) =
+			if ( ArrivedAtHospital(?a) ) then false				// arrived at hospital
+			else if ( ArrivedAtEmergency(?a) ) then true		// answering emergency call
+			else PassengerOn(?a);								// otherwise, the state persists				
+		
+		EmergencyDest'(?a, ?l) = 
+			if ( ArrivedAtEmergency(?a) ) then false			// ambulance would go towards hospital in this case
+			else if ( exists_{?h : location} [HOSPITAL(?h) ^ dispatch(?a, ?l, ?h)] ) 
+				then true
+			else EmergencyDest(?a, ?l);
+			
+		HospitalDest'(?a, ?l) =
+			if ( ~HOSPITAL(?l) ) then false 					// for all locations other than hospitals
+			else if ( ArrivedAt(?a, ?l) ) then false			// if arrived at this particular hospital
+			else if ( exists_{?e : location} [EMERGENCY(?e) ^ dispatch(?a, ?e, ?l)] )
+				then true
+			else HospitalDest(?a, ?l);
+		
+		moveX(?a) =
+			if ( TowardEmergency(?a) )
+				then [if (exists_{?l : location} [( EmergencyDest(?a, ?l) | newDispatch(?a, ?l) ) ^ (x_Pos(?l) > xPos(?a))])
+						then 1
+					  else if (exists_{?l : location} [EmergencyDest(?a, ?l) ^ (x_Pos(?l) < xPos(?a))])
+					  	then -1
+					  else 0]
+
+			else if ( TowardHospital(?a) )
+				then [if ( exists_{?l : location} [HospitalDest(?a, ?l) ^ (x_Pos(?l) > xPos(?a))] )
+						then 1
+					  else if ( exists_{?l : location} [HospitalDest(?a, ?l) ^ (x_Pos(?l) < xPos(?a))] )
+					  	then -1
+					  else 0]
+			else 0;
+		
+		moveY(?a) =
+			if ( TowardEmergency(?a) ) 
+				then [if ( exists_{?l : location} [ ( EmergencyDest(?a, ?l) | newDispatch(?a, ?l) ) ^ (y_Pos(?l) > yPos(?a))] )
+						then 1
+					  else if ( exists_{?l : location} [EmergencyDest(?a, ?l) ^ (y_Pos(?l) < yPos(?a))] )
+					  	then -1
+					  else 0]
+			else if ( TowardHospital(?a) )
+				then [if ( exists_{?l : location} [HospitalDest(?a, ?l) ^ (y_Pos(?l) > yPos(?a))] )
+						then 1
+					  else if ( exists_{?l : location} [HospitalDest(?a, ?l) ^ (y_Pos(?l) < yPos(?a))] )
+					  	then -1
+					  else 0]
+			else 0;
+		
+		XorY(?a) = 
+			if ( (moveX(?a) ~= 0) ^ (moveY(?a) ~= 0) ) then 
+				Bernoulli(0.5)		// with probability 0.5, choose either x or y direction 
+			else if (moveX(?a) == 0) then false			// move along y direction
+			else true;									// move along x direction (XorY == true)
+		
+		nextX(?a) = 
+			if (~XorY(?a)) then xPos(?a)				// do not move along x direction
+			else xPos(?a) + moveX(?a);					// move +1, 0, -1 along x axis
+		nextY(?a) = 
+			if (XorY(?a)) then yPos(?a)					// no moves along y direction
+			else yPos(?a) + moveY(?a);					// move +1, 0, -1 along y axis
+		
+		xPos'(?a) = nextX(?a);		
+		yPos'(?a) = nextY(?a);
+	};
+	
+	reward = [ NON_ANSWERED_PENALTY * sum_{?l : location} [active(?l)] ] 
+			+ [ ON_THE_WAY_PENALTY * sum_{?a : ambulance} [PassengerOn(?a)] ];
+	
+	state-action-constraints {
+		// dispatch action can only happen when an emergency call is still active (while no ambulance has been assigned), and an ambulance is idle. 
+		forall_{?a : ambulance} forall_{?e : location} forall_{?h : location} [dispatch(?a, ?e, ?h) => (EMERGENCY(?e) ^ HOSPITAL(?h) ^ active(?e) ^ (~exists_{?l : location}[EmergencyDest(?a, ?l) | HospitalDest(?a, ?l)]) ^ (~exists_{?b : ambulance}[EmergencyDest(?b, ?e)])) ];
+		
+		// vice versa
+		forall_{?e : location} [ exists_{?h : location} [(EMERGENCY(?e) ^ HOSPITAL(?h) ^ active(?e) ^ (~exists_{?a : ambulance}[EmergencyDest(?a, ?e)]))] => exists_{?a : ambulance} exists_{?h: location} [dispatch(?a, ?e, ?h)] ];
+		
+		// Ensure that no two ambulances can be heading towards the same emergency call
+		forall_{?e : location} [(sum_{?a : ambulance}[EmergencyDest(?a, ?e)]) <= 1];
+		
+		// only one ambulance can be dispatched to a certain emergency call
+		forall_{?e : location} [( sum_{?a : ambulance} sum_{?h : location} [dispatch(?a, ?e, ?h)] ) <= 1];
+		
+		// an ambulance can only be dispatched to a single emergency call
+		forall_{?a : ambulance} [ ( sum_{?e : location} sum_{?h : location} [dispatch(?a, ?e, ?h)] ) <= 1];
+		
+		// for a single ambulance only one HospitalDest and one EmergencyDest can be defined
+		forall_{?a : ambulance}[((sum_{?e : location}[EMERGENCY(?e) ^ EmergencyDest(?a, ?e)]) <= 1) ^ ((sum_{?h : location}[HOSPITAL(?h) ^ HospitalDest(?a, ?h)]) <= 1) ];
+		
+	};
+
+}

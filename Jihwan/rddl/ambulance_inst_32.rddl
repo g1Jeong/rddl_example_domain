@@ -1,0 +1,85 @@
+non-fluents ambulance_nf_32 {
+
+	domain = ambulance;
+	
+	// single hospital and ambulance on 4x4 grid (hence 15 emergency locations)
+	objects {
+		ambulance : {a1, a2, a3};
+		location : {h1, h2, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e13, e14, e15};
+	};
+	
+	non-fluents {
+		NON_ANSWERED_PENALTY = -20.0;
+		ON_THE_WAY_PENALTY = -5.0;
+		ARRIVAL_RATE = 0.2;
+		
+		HOSPITAL(h1);
+		HOSPITAL(h2);
+		EMERGENCY(e1);
+		EMERGENCY(e2);
+		EMERGENCY(e3);
+		EMERGENCY(e4);
+		EMERGENCY(e5);
+		EMERGENCY(e6);
+		EMERGENCY(e7);
+		EMERGENCY(e8);
+		EMERGENCY(e9);
+		EMERGENCY(e10);
+		EMERGENCY(e11);
+		EMERGENCY(e12);
+		EMERGENCY(e13);
+		EMERGENCY(e14);
+		EMERGENCY(e15);
+		
+		x_Pos(h1) = 2;
+		y_Pos(h1) = 1;
+		x_Pos(e1) = 0;
+		y_Pos(e1) = 0;
+		x_Pos(e2) = 1;
+		y_Pos(e2) = 0;
+		x_Pos(e3) = 2;
+		y_Pos(e3) = 0;
+		x_Pos(e4) = 3;
+		y_Pos(e4) = 0;
+		x_Pos(e5) = 0;
+		y_Pos(e5) = 1;
+		x_Pos(e6) = 1;
+		y_Pos(e6) = 1;
+		x_Pos(e7) = 3;
+		y_Pos(e7) = 1;
+		x_Pos(e8) = 0;
+		y_Pos(e8) = 2;
+		x_Pos(e9) = 1;
+		y_Pos(e9) = 2;
+		x_Pos(e10) = 2;
+		y_Pos(e10) = 2;
+		x_Pos(e11) = 3;
+		y_Pos(e11) = 2;
+		x_Pos(h2) = 0;
+		y_Pos(h2) = 3;
+		x_Pos(e13) = 1;
+		y_Pos(e13) = 3;
+		x_Pos(e14) = 2;
+		y_Pos(e14) = 3;
+		x_Pos(e15) = 3;
+		y_Pos(e15) = 3;
+	};
+}
+
+instance ambulance_inst_32 {
+	domain = ambulance;
+	non-fluents = ambulance_nf_32;
+	
+	init-state {
+		xPos(a1) = 0;
+		yPos(a1) = 0;
+		xPos(a2) = 3;
+		yPos(a2) = 3;
+		xPos(a3) = 2;
+		yPos(a3) = 0;
+	};
+	
+	max-nondef-actions = 2;
+	horizon = 100;
+	discount = 1.0;
+}
